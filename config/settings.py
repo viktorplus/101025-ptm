@@ -454,7 +454,7 @@ LOGGING = {  # Главный словарь конфигурации logging д
             "level": "DEBUG",  # В dev-режиме хотим видеть максимум информации в консоли.
         },
         "app_file": {  # Handler для основного файла приложения.
-            "class": "logging.handlers.TimedRotatingFileHandler",  # Используем ротацию по времени, чтобы файл обновлялся регулярно.
+            "class": "concurrent_log_handler.ConcurrentTimedRotatingFileHandler",  # Используем ротацию по времени, чтобы файл обновлялся регулярно.
             "filename": LOGS_DIR / "app.log",  # Путь к файлу app.log, куда пойдут общие рабочие события.
             "when": "midnight",  # Ротируем файл каждый день в полночь.
             "interval": 1,  # Интервал ротации — каждый 1 день.
@@ -464,7 +464,7 @@ LOGGING = {  # Главный словарь конфигурации logging д
             "encoding": "utf-8",  # Используем UTF-8, чтобы кириллица и Unicode писались корректно.
         },
         "error_file": {  # Handler для отдельного файла ошибок.
-            "class": "logging.handlers.TimedRotatingFileHandler",  # Используем ротацию по времени и для ошибок.
+            "class": "concurrent_log_handler.ConcurrentTimedRotatingFileHandler",  # Используем ротацию по времени и для ошибок.
             "filename": LOGS_DIR / "errors.log",  # Путь к файлу, куда будут записываться только ошибки.
             "when": "midnight",  # Ротируем файл ошибок ежедневно в полночь.
             "interval": 1,  # Интервал ротации — 1 день.
@@ -474,7 +474,7 @@ LOGGING = {  # Главный словарь конфигурации logging д
             "encoding": "utf-8",  # Используем UTF-8 для корректной записи текста.
         },
         "db_file": {  # Handler для отдельного SQL-лога.
-            "class": "logging.handlers.TimedRotatingFileHandler",  # Используем ротацию по времени и для SQL-файла.
+            "class": "concurrent_log_handler.ConcurrentTimedRotatingFileHandler",  # Используем ротацию по времени и для SQL-файла.
             "filename": LOGS_DIR / "db.log",  # Путь к db.log, куда будем писать SQL-запросы Django ORM.
             "when": "midnight",  # Ротируем db.log каждый день в полночь.
             "interval": 1,  # Интервал ротации — 1 день.

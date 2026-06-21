@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -109,7 +110,10 @@ class BookListCreateAPIView(APIView):
 class BookRetrieveUpdateDestroyAPIView(APIView):
 
     def get_object(self):
-        return get_object_or_404(Book, pk=self.kwargs.get('pk'))
+        return get_object_or_404(
+            Book.objects.select_related('category', 'author', 'publisher'),
+            pk=self.kwargs.get('pk')
+        )
 
     def update(self, instance: Book, data: dict[str, Any], partial: bool = False):
         serializer = BookCreateUpdateSerializer(
@@ -169,7 +173,7 @@ class BookRetrieveUpdateDestroyAPIView(APIView):
 class CategoryListCreateGenericAPIView(GenericAPIView):
 
     queryset = Category.objects.all()
-    # serializer_class = CategorySerializer
+    serializer_class = CategorySerializer
     pagination_class = CustomPageNumberPaginator
 
     def get(self, request: Request, *args, **kwargs) -> Response:
@@ -303,28 +307,28 @@ class BookListGenericView(ListAPIView):
     serializer_class = BookListSerializer
     pagination_class = CustomCursorPaginator
 
-    # filter_backends = [
-    #     DjangoFilterBackend, # фильтрация данных
-    #     SearchFilter, # поиск объектов
-    #     OrderingFilter # сортировку объектов
-    # ]
-    #
-    # filterset_fields = [
-    #     'author',
-    #     'price',
-    #     'publisher',
-    #     'category',
-    #     'published_date',
-    # ]
-    # search_fields = [
-    #     'name',
-    #     'description',
-    # ]
-    # ordering_fields = [
-    #     'id',
-    #     'price',
-    #     'published_date',
-    # ]
+    filter_backends = [
+        DjangoFilterBackend, # фильтрация данных
+        SearchFilter, # поиск объектов
+        OrderingFilter # сортировку объектов
+    ]
+
+    filterset_fields = [
+        'author',
+        'price',
+        'publisher',
+        'category',
+        'published_date',
+    ]
+    search_fields = [
+        'name',
+        'description',
+    ]
+    ordering_fields = [
+        'id',
+        'price',
+        'published_date',
+    ]
 
 
 
@@ -388,4 +392,130 @@ class PublisherViewSet(ModelViewSet):
         return Response(
             data=publishers,
             status=status.HTTP_200_OK
+        )
+
+
+
+
+# работа с транзакциями
+
+from django.db import transaction, IntegrityError, DatabaseError
+
+
+# transaction.atomic() -- основной инструмент. Генирирует
+# атомарный блок. При любой ошибке в э\том блоке все изменения
+# откатываются АВТОМАТИЧЕСКИ. Механизм умный, сам ставить savepoint
+# перед началом транзакции, на каждой успешной частичке транзакции.
+# Если ошибка -- сам прекрасно выполняет rollback. Если успех, сам
+# прекрасно выполняет commit()
+
+
+# transaction.on_commit() -- регистрирует callback (какая-то функция, которая будет вызвана) объект,
+# который будет вызван при успешном коммите
+# transaction.on_commit(callback=lambda: print('УСПЕХ'))
+
+
+# НЕ БЕЗОПАСНЫЙ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# transaction.set_autocommit(False) -- низкоуровневое управление транзакциями.
+# Мы отключаем автокоммит и сами настраиваем поведение транзакции. ВАЖНО НЕ
+# ЗАБЫТЬ ВКЛЮЧИТЬ ЕГО НАЗАД КАК ТОЛЬКО ТРАНЗАКЦИЯ БЫЛА ВЫПОЛНЕНА
+# transaction.set_autocommit(True)
+
+
+
+
+def notify_me():
+    print("=" * 100)
+    print("Транзакция отработала успешно, отправляю сообщение на email 'test.mail@gmail.com'")
+    print("=" * 100)
+
+
+
+class AuthorViewSet(ModelViewSet):
+    queryset = Author.objects.all()
+    serializer_class = AuthorCreateSerializer
+
+    # HTTP methods заменяются на self.actions
+
+    # GET    -> list | retrieve
+    # POST   -> create
+    # PUT    -> update
+    # PATCH  -> partial_update
+    # DELETE -> destroy
+    # POST   -> create_author_with_books
+
+
+    @action(detail=False, methods=['post'])
+    def create_author_with_books(self, request: Request) -> Response:
+        """
+        Example: {
+            "author": {
+                "name": "Test",
+                "surname": "Author"
+            },
+            "books": [
+                {"name": "Book 1", "price": 9.99, "category": 1, "libraries": [1, 2]},
+                {"name": "Book 2", "price": 15.31, "category": 2, "libraries": [2, 3]},
+                {"name": "Book 3", "price": "dvadtsat' pyat'", "category": 3, "libraries": [1, 2, 3]}
+            ]
+        }
+        :param request:
+        :return:
+        """
+
+        author_data = request.data.get('author')
+        books_data = request.data.get('books')
+
+        # print("=" * 100)
+        # print(author_data)
+        # print("=" * 100)
+
+
+        if not author_data or not (books_data, list):
+            return Response(
+                data={'message': 'Запрос должен содержать автора и СПИСОК книг'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                # step 1 создание автора
+
+                author_serializer = self.get_serializer(data=author_data)
+                # author_serializer = AuthorCreateSerializer(data=author_data)
+                author_serializer.is_valid(raise_exception=True)
+                author = author_serializer.save()
+
+                # step 2 создание книжек для этого автора
+
+                for book in books_data:
+                    book_serializer = BookCreateUpdateSerializer(data=book)
+                    book_serializer.is_valid(raise_exception=True)
+                    book_serializer.save(author=author)
+
+
+                # transaction.on_commit(lambda : notify_me())
+                transaction.on_commit(notify_me)
+
+        except ValidationError as err:
+            return Response(
+                data={'error': str(err)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except IntegrityError as err:
+            return Response(
+                data={'error': f"Нарушение целостности: {str(err)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except DatabaseError as err:
+            return Response(
+                data={'error': f"Ошибка базы данных: {str(err)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            data={'author': author_serializer.data},
+            status=status.HTTP_201_CREATED
         )

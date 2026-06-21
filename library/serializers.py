@@ -117,7 +117,6 @@ class BookCreateUpdateSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(
         max_digits=6,
         decimal_places=2,
-        # read_only=True
     )
 
     discount_percentage = serializers.IntegerField(
@@ -137,11 +136,38 @@ class BookCreateUpdateSerializer(serializers.ModelSerializer):
             'discount_percentage',  # NEW кастомная колонка. !! ИСКЛЮЧИТЕЛЬНО ВРЕМЕННАЯ НЕ ЗАБЫТЬ УДАЛИТЬ ПЕРЕД create \ update !!
             'category',
         ]
-        #
-        # extra_kwargs = {
-        #     'price' : {
-        #         'read_only': True
-        #
+
+    def create(self, validated_data: dict) -> Book:
+        discount_percentage = validated_data.pop('discount_percentage', None)
+        libraries = validated_data.pop('libraries', [])
+
+        book = Book.objects.create(**validated_data)
+
+        if discount_percentage is not None:
+            book.discounted_price = book.price * (1 - discount_percentage / 100)
+            book.save(update_fields=['discounted_price'])
+
+        if libraries:
+            book.libraries.set(libraries)
+
+        return book
+
+    def update(self, instance: Book, validated_data: dict) -> Book:
+        discount_percentage = validated_data.pop('discount_percentage', None)
+        libraries = validated_data.pop('libraries', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if discount_percentage is not None:
+            instance.discounted_price = instance.price * (1 - discount_percentage / 100)
+
+        instance.save()
+
+        if libraries is not None:
+            instance.libraries.set(libraries)
+
+        return instance
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -149,6 +175,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+        read_only_fields = ['deleted_at']
 
 
 # class AuthorSerializer(serializers.ModelSerializer):

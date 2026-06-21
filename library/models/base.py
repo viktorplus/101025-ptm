@@ -46,7 +46,7 @@ class SoftDeletionQuerySet(models.QuerySet):
 # а не от стандартного Manager. Это позволяет Django корректно использовать
 # наш QuerySet при клонировании (например, при .all() или слайсах),
 # не откатываясь к базовому QuerySet.
-class SoftDeletionManager(BaseManager):
+class SoftDeletionManager(BaseManager.from_queryset(SoftDeletionQuerySet)):
 
     def get_queryset(self):
         return SoftDeletionQuerySet(

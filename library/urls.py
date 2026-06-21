@@ -11,13 +11,15 @@ from library.class_views import (
     AuthorListCreateGenericView,
     UserListGenericView,
     BookListGenericView,
-    PublisherViewSet
+    PublisherViewSet,
+    AuthorViewSet
 )
 
 
 router = SimpleRouter()
 # router = DefaultRouter()
 router.register('publishers', PublisherViewSet)
+router.register('authors', AuthorViewSet)
 #
 # publishers/
 # publishers/<regular expression>/
@@ -31,7 +33,7 @@ urlpatterns = [
     path('books/<int:pk>/', BookRetrieveUpdateDestroyAPIView.as_view()),
     path('categories/', CategoryListCreateGenericAPIView.as_view()),
     path('categories/<str:name>/', CategoryRetrieveUpdateDestroyGenericView.as_view()),
-    path('authors/', AuthorListCreateGenericView.as_view()),
+    # path('authors/', AuthorListCreateGenericView.as_view()),
     path('users/', UserListGenericView.as_view()),
 ]
 
