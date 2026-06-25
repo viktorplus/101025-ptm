@@ -25,6 +25,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from library.permissions import IsBookOwnerOrReadOnly, IsStaffAndOwner, CanGetStatistic
 from library.serializers import (
@@ -37,9 +39,10 @@ from library.serializers import (
     AuthorListSerializer,
     AuthorCreateSerializer,
     UserListSerializer, PublisherListSerializer, PublisherCreateSerializer,
-    PublisherUpdateSerializer, PublisherDetailSerializer, CategoryStatisticSerializer
+    PublisherUpdateSerializer, PublisherDetailSerializer, CategoryStatisticSerializer, UserLoginSerializer
 )
 from library.models import Book, Category, Author, User, Publisher, Review
+from library.utils import set_jwt_cookies, clear_cookies
 from query_debug import QueryDebug
 
 
@@ -588,3 +591,56 @@ class ReviewViewSet(ModelViewSet):
 
     # def get_serializer_class(self):
     #     ...
+
+
+class LoginUser(APIView):
+
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        serializer = UserLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data['user']
+
+        try:
+            response = Response(status=status.HTTP_200_OK)
+
+            set_jwt_cookies(response=response, user=user)
+
+            return response
+        except Exception as err:
+            return Response(
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                data={
+                    "message": str(err)
+                }
+            )
+
+
+class LogoutUser(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        try:
+            refresh_token = request.COOKIES.get('refresh_token')
+
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except TokenError:
+                    pass
+        except Exception as err:
+            return Response(
+                data={
+                    "message": str(err)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        response = Response(status=status.HTTP_200_OK)
+        clear_cookies(response=response)
+
+        return response

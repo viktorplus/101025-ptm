@@ -324,25 +324,25 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from rest_framework.authtoken.models import Token
-from library.models import User
-
-
-try:
-    user = User.objects.get(username="vlad")
-
-    # try:
-    #     token = Token.objects.get(user=user)
-    #
-    # except Token.DoesNotExist:
-    #     token = Token.objects.create(user=user)
-
-    token, created = Token.objects.get_or_create(user=user)
-
-    print(token.key)
-
-except User.DoesNotExist:
-    print("User not found")
+# from rest_framework.authtoken.models import Token
+# from library.models import User
+#
+#
+# try:
+#     user = User.objects.get(username="vlad")
+#
+#     # try:
+#     #     token = Token.objects.get(user=user)
+#     #
+#     # except Token.DoesNotExist:
+#     #     token = Token.objects.create(user=user)
+#
+#     token, created = Token.objects.get_or_create(user=user)
+#
+#     print(token.key)
+#
+# except User.DoesNotExist:
+#     print("User not found")
 
 
 
@@ -357,3 +357,26 @@ except User.DoesNotExist:
 #     name="",
 #     owner=user
 # )
+
+
+
+class User:
+
+    name = "Vlad"
+    age = 18
+
+
+
+user = User()
+
+
+print(user)
+
+print(user.age)
+print(user.name)
+
+print("add new params!!!!")
+
+user.new_param = "OUR NEW PARAM"
+
+print(user.new_param)

@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.contrib.auth import authenticate
 from rest_framework import serializers
 
 from library.models import Book, Library, Category, Author, User, Review, Publisher
@@ -282,3 +283,53 @@ class PublisherUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Publisher
         fields = '__all__'
+
+
+# ============================================================
+
+# USER AUTH LOGIC (Login, Register)
+
+# ============================================================
+
+
+class UserLoginSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        required=True,
+        write_only=True,
+        trim_whitespace=True,
+        max_length=30
+    )
+    password = serializers.CharField(
+        required=True,
+        write_only=True,
+        max_length=30
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        username = attrs.get('username')
+        password = attrs.get('password')
+
+        user = authenticate(  # кидаем поиск конкретного пользователя в базу данных с такими кредами(логин, пароль). Если такой пользователь есть -- вернётся его объект User(...), если нет совпадений -- получим None
+            request=self.context.get('request'),
+            username=username,
+            password=password
+        )
+
+        if not user:
+            raise serializers.ValidationError(
+                {
+                    "message": "Unable to log in with provided credentials."
+                },
+                code="authorisation"
+            )
+
+        if not user.is_active:
+            raise serializers.ValidationError(
+                {
+                    "message": "Your account is disabled"
+                },
+                code="authorisation"
+            )
+
+        attrs['user'] = user
+        return attrs

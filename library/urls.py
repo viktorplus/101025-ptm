@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter, DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -15,7 +16,7 @@ from library.class_views import (
     BookListGenericView,
     PublisherViewSet,
     AuthorViewSet,
-    BookUpdateGenericView, CategoryStatisticGenricView
+    BookUpdateGenericView, CategoryStatisticGenricView, LoginUser, LogoutUser
 )
 
 
@@ -36,6 +37,9 @@ urlpatterns = [
     # jwt token auth
     path('jwt-auth/', TokenObtainPairView.as_view()),
     path('jwt-refresh/', TokenRefreshView.as_view()),
+
+    path('auth/login/', LoginUser.as_view()),
+    path('auth/logout/', LogoutUser.as_view()),
 
 
     # path('books/', book_list_create),
